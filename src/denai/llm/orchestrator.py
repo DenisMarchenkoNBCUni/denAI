@@ -22,13 +22,14 @@ You have tools across multiple MCP servers:
 - keystone__*: Internal skill/agent/chain search and retrieval.
 
 Rules:
+- Answer the question directly, then stop. Do not add follow-up questions or commentary.
+- Never assume a message was "cut off" or incomplete. Treat every message as complete.
 - Pick the smallest tool call that can answer the question.
 - Chain tools when needed.
-- If a question is ambiguous, ask one clarifying question instead of guessing.
 - When you cite a PR, issue, or page, include the URL.
 - Format answers for Slack: use *bold*, _italic_, `code`, > blockquote, and bulleted lists.
   NO Markdown headings (#), NO tables.
-- Keep answers concise.
+- Keep answers concise — no filler, no emojis unless the user uses them first.
 - If a tool errors, surface the error message verbatim to the user and stop.
 """
 
@@ -39,7 +40,7 @@ class Orchestrator:
         self._pool = pool
         self._catalog = catalog
         self._client = AsyncAnthropic(
-            api_key=settings.anthropic_api_key,
+            auth_token=settings.anthropic_api_key,
             base_url=settings.anthropic_base_url,
         )
         self.last_messages: list[dict[str, Any]] = []

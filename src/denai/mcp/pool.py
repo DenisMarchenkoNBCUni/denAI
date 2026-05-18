@@ -71,7 +71,7 @@ class McpPool:
         url = server_def["url"]
         headers = server_def.get("headers", {})
 
-        http_client = httpx.AsyncClient(headers=headers)
+        http_client = httpx.AsyncClient(headers=headers, timeout=30.0)
         transport = streamable_http_client(url=url, http_client=http_client)
         read, write, _ = await transport.__aenter__()
         self._transports.append(transport)

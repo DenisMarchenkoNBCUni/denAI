@@ -1,6 +1,7 @@
 """Entry point: python -m denai.app"""
 
 import asyncio
+import logging
 
 import structlog
 
@@ -15,10 +16,9 @@ logger = structlog.get_logger()
 
 async def main() -> None:
     settings = Settings()  # type: ignore[call-arg]
+    log_level = logging.getLevelNamesMapping().get(settings.log_level.upper(), logging.INFO)
     structlog.configure(
-        wrapper_class=structlog.make_filtering_bound_logger(
-            structlog.get_level_from_name(settings.log_level)  # type: ignore[arg-type]
-        ),
+        wrapper_class=structlog.make_filtering_bound_logger(log_level),
     )
 
     logger.info("starting denAI", model=settings.anthropic_model)
