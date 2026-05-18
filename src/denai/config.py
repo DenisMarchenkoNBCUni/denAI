@@ -17,7 +17,7 @@ class Settings(BaseSettings):
 
     # MCP
     mcp_config_path: str = "~/.claude/settings.json"
-    mcp_servers: list[str] = ["alexandria", "devdoc", "github", "slack"]
+    mcp_servers: list[str] = ["github", "atlassian", "slack", "keystone"]
 
     # Behaviour
     history_max_turns: int = 20
