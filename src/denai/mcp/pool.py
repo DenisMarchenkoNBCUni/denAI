@@ -1,13 +1,15 @@
 """MCP client pool — one session per server, supports stdio and HTTP transports."""
 
+import contextlib
 import json
 from pathlib import Path
 from typing import Any
 
+import httpx
 import structlog
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
-from mcp.client.streamable_http import streamablehttp_client
+from mcp.client.streamable_http import streamable_http_client
 
 from denai.config import Settings
 
@@ -31,16 +33,12 @@ class McpPool:
                 config = json.load(f)
             servers.update(config.get("mcpServers", {}))
 
-        # Load from project-level .mcp.json files
-        project_paths = [
-            Path("C:/Source/ETN.Web.Activation/.mcp.json"),
-            Path(".mcp.json"),
-        ]
-        for path in project_paths:
-            if path.exists():
-                with open(path) as f:
-                    data = json.load(f)
-                servers.update(data.get("mcpServers", {}))
+        # Load from project-level .mcp.json
+        local_mcp = Path(".mcp.json")
+        if local_mcp.exists():
+            with open(local_mcp) as f:
+                data = json.load(f)
+            servers.update(data.get("mcpServers", {}))
 
         return servers
 
@@ -73,7 +71,8 @@ class McpPool:
         url = server_def["url"]
         headers = server_def.get("headers", {})
 
-        transport = streamablehttp_client(url=url, headers=headers)
+        http_client = httpx.AsyncClient(headers=headers)
+        transport = streamable_http_client(url=url, http_client=http_client)
         read, write, _ = await transport.__aenter__()
         self._transports.append(transport)
 
@@ -91,7 +90,7 @@ class McpPool:
         """Connect to a single MCP server via stdio."""
         command = server_def.get("command", "")
         args = server_def.get("args", [])
-        env = server_def.get("env", None)
+        env = server_def.get("env")
 
         params = StdioServerParameters(command=command, args=args, env=env)
 
@@ -118,7 +117,5 @@ class McpPool:
                 logger.warning("error closing MCP session", server=key)
 
         for transport in self._transports:
-            try:
+            with contextlib.suppress(Exception):
                 await transport.__aexit__(None, None, None)
-            except Exception:
-                pass

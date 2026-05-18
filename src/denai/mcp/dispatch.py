@@ -28,20 +28,17 @@ async def dispatch(pool: McpPool, tool_use: Any) -> dict[str, Any]:
 
     result = await session.call_tool(tool_name, arguments=tool_use.input)
 
-    # Serialize content
     content: str
     if isinstance(result.content, str):
         content = result.content
-    elif isinstance(result.content, list):
-        parts = []
+    else:
+        parts: list[str] = []
         for block in result.content:
             if hasattr(block, "text"):
-                parts.append(block.text)
+                parts.append(block.text)  # type: ignore[union-attr]
             else:
                 parts.append(str(block))
         content = "\n".join(parts)
-    else:
-        content = str(result.content)
 
     return {
         "type": "tool_result",

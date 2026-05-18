@@ -1,6 +1,7 @@
 """Allow running with `python -m denai`."""
 
-from denai.app import main
 import asyncio
+
+from denai.app import main
 
 asyncio.run(main())

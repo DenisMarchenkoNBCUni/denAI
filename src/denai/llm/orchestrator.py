@@ -18,17 +18,16 @@ MAX_TOOL_ITERATIONS = 8
 SYSTEM_PROMPT = """You are denAI, an internal Slack assistant for the engineering team.
 
 You have tools across multiple MCP servers:
-- alexandria__*: Jira tickets, Confluence pages.
-- devdoc__*: DevDoc search and retrieval.
 - github__*: GitHub PRs, issues, commits, code search, and reviews.
-- slack__*: Slack message search, channel history, user lookup.
+- keystone__*: Internal skill/agent/chain search and retrieval.
 
 Rules:
 - Pick the smallest tool call that can answer the question.
 - Chain tools when needed.
 - If a question is ambiguous, ask one clarifying question instead of guessing.
-- When you cite a Jira ticket, PR, or Confluence page, include the URL.
-- Format answers for Slack: use *bold*, _italic_, `code`, > blockquote, and bulleted lists. NO Markdown headings (#), NO tables.
+- When you cite a PR, issue, or page, include the URL.
+- Format answers for Slack: use *bold*, _italic_, `code`, > blockquote, and bulleted lists.
+  NO Markdown headings (#), NO tables.
 - Keep answers concise.
 - If a tool errors, surface the error message verbatim to the user and stop.
 """
@@ -86,9 +85,9 @@ class Orchestrator:
                     return_exceptions=True,
                 )
 
-                tool_results = []
-                for tu, result in zip(tool_uses, results):
-                    if isinstance(result, Exception):
+                tool_results: list[dict[str, Any]] = []
+                for tu, result in zip(tool_uses, results, strict=True):
+                    if isinstance(result, BaseException):
                         tool_results.append(
                             {
                                 "type": "tool_result",

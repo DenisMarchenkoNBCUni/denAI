@@ -4,6 +4,7 @@ import os
 from unittest.mock import patch
 
 import pytest
+from pydantic import ValidationError
 
 from denai.config import Settings
 
@@ -22,6 +23,5 @@ def test_settings_loads_from_env() -> None:
 
 
 def test_settings_missing_required_raises() -> None:
-    with patch.dict(os.environ, {}, clear=True):
-        with pytest.raises(Exception):
-            Settings()  # type: ignore[call-arg]
+    with patch.dict(os.environ, {}, clear=True), pytest.raises(ValidationError):
+        Settings(_env_file=None)  # type: ignore[call-arg]
