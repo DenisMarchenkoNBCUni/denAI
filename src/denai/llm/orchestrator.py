@@ -38,7 +38,10 @@ class Orchestrator:
         self._settings = settings
         self._pool = pool
         self._catalog = catalog
-        self._client = AsyncAnthropic(api_key=settings.anthropic_api_key)
+        self._client = AsyncAnthropic(
+            api_key=settings.anthropic_api_key,
+            base_url=settings.anthropic_base_url,
+        )
         self.last_messages: list[dict[str, Any]] = []
 
     def _catalog_with_cache_control(self) -> list[dict[str, Any]]:

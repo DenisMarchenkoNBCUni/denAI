@@ -10,8 +10,9 @@ class Settings(BaseSettings):
     slack_bot_token: str
     slack_app_token: str
 
-    # Anthropic
+    # Anthropic (via Keystone proxy)
     anthropic_api_key: str
+    anthropic_base_url: str = "https://golfnow-keystone.vdpv.ai"
     anthropic_model: str = "claude-sonnet-4-6"
     anthropic_max_tokens: int = 4096
 
