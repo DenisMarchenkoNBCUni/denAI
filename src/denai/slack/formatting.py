@@ -11,12 +11,12 @@ def markdown_to_mrkdwn(text: str) -> str:
     # Convert links [text](url) -> <url|text>
     text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r"<\2|\1>", text)
 
+    # Convert italic *text* -> _text_ (single asterisks only, before bold conversion)
+    # Match single * not preceded/followed by another *
+    text = re.sub(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"_\1_", text)
+
     # Convert bold **text** -> *text*
     text = re.sub(r"\*\*(.+?)\*\*", r"*\1*", text)
-
-    # Convert italic *text* -> _text_ (but not inside bold)
-    # Only match single * not preceded/followed by *
-    text = re.sub(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)", r"_\1_", text)
 
     # Convert headings to bold
     text = re.sub(r"^#{1,6}\s+(.+)$", r"*\1*", text, flags=re.MULTILINE)
