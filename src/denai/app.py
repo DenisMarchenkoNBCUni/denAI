@@ -1,13 +1,16 @@
 """Entry point: python -m denai.app"""
 
 import asyncio
+import json
 import logging
+from pathlib import Path
 
 import structlog
 
 from denai.config import Settings
 from denai.llm.orchestrator import Orchestrator
 from denai.mcp.catalog import build_catalog
+from denai.mcp.dispatch import init_jira_client
 from denai.mcp.pool import McpPool
 from denai.slack.bot import create_app
 
@@ -22,6 +25,20 @@ async def main() -> None:
     )
 
     logger.info("starting denAI", model=settings.anthropic_model)
+
+    # Initialize direct Jira client (bypasses broken mcp-atlassian search)
+    config_path = Path(settings.mcp_config_path).expanduser()
+    if config_path.exists():
+        with open(config_path) as f:
+            mcp_cfg = json.load(f)
+        atlassian_env = mcp_cfg.get("mcpServers", {}).get("atlassian", {}).get("env", {})
+        if atlassian_env.get("JIRA_URL"):
+            init_jira_client(
+                base_url=atlassian_env["JIRA_URL"],
+                username=atlassian_env["JIRA_USERNAME"],
+                api_token=atlassian_env["JIRA_API_TOKEN"],
+            )
+            logger.info("jira client initialized (direct REST)")
 
     # Connect to MCP servers
     pool = McpPool(settings)

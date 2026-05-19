@@ -21,6 +21,25 @@ def create_app(settings: Settings, orchestrator: Orchestrator) -> AsyncSocketMod
     app = AsyncApp(token=settings.slack_bot_token)
     memory = ThreadMemory(max_turns=settings.history_max_turns)
 
+    async def _resolve_user_context(client: Any, user_id: str) -> str:
+        """Resolve Slack user ID to name + email for identity-aware tool calls."""
+        if not user_id:
+            return ""
+        try:
+            resp = await client.users_info(user=user_id)
+            profile = resp["user"].get("profile", {})
+            name = profile.get("real_name", resp["user"].get("real_name", ""))
+            email = profile.get("email", "")
+            parts = []
+            if name:
+                parts.append(f"Name: {name}")
+            if email:
+                parts.append(f"Email: {email}")
+            return "\n".join(parts)
+        except Exception:
+            logger.warning("failed to resolve user profile", user_id=user_id)
+            return ""
+
     @app.event("app_mention")  # type: ignore[misc]
     async def handle_mention(event: dict[str, Any], say: Any, client: Any) -> None:
         channel = event["channel"]
@@ -41,8 +60,11 @@ def create_app(settings: Settings, orchestrator: Orchestrator) -> AsyncSocketMod
         logger.info("received mention", user=user, channel=channel, question=question[:100])
 
         try:
+            user_context = await _resolve_user_context(client, user)
             history = memory.get(channel, thread_ts)
-            answer = await orchestrator.answer(question=question, thread_history=history)
+            answer = await orchestrator.answer(
+                question=question, thread_history=history, user_context=user_context
+            )
             memory.set(channel, thread_ts, orchestrator.last_messages)
 
             formatted = markdown_to_mrkdwn(answer)
@@ -76,6 +98,7 @@ def create_app(settings: Settings, orchestrator: Orchestrator) -> AsyncSocketMod
 
         channel = event["channel"]
         text = event.get("text", "")
+        user = event.get("user", "")
 
         logger.info("received DM", channel=channel, question=text[:100])
 
@@ -85,8 +108,11 @@ def create_app(settings: Settings, orchestrator: Orchestrator) -> AsyncSocketMod
             )
 
         try:
+            user_context = await _resolve_user_context(client, user)
             history = memory.get(channel, None)
-            answer = await orchestrator.answer(question=text, thread_history=history)
+            answer = await orchestrator.answer(
+                question=text, thread_history=history, user_context=user_context
+            )
             memory.set(channel, None, orchestrator.last_messages)
 
             formatted = markdown_to_mrkdwn(answer)

@@ -8,7 +8,7 @@ from typing import Any
 import httpx
 import structlog
 from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
+from mcp.client.stdio import get_default_environment, stdio_client
 from mcp.client.streamable_http import streamable_http_client
 
 from denai.config import Settings
@@ -90,7 +90,11 @@ class McpPool:
         """Connect to a single MCP server via stdio."""
         command = server_def.get("command", "")
         args = server_def.get("args", [])
-        env = server_def.get("env")
+        env_override = server_def.get("env")
+
+        env = get_default_environment()
+        if env_override:
+            env.update(env_override)
 
         params = StdioServerParameters(command=command, args=args, env=env)
 

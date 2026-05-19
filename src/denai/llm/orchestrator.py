@@ -21,6 +21,7 @@ You have tools across multiple MCP servers:
 - github__*: GitHub PRs, issues, commits, code search, and reviews.
 - atlassian__*: Jira tickets, Confluence pages, search, and comments.
 - keystone__*: Internal skill/agent/chain search and retrieval.
+- mssql__*: Query SQL Server databases, list tables, describe schemas, run queries.
 
 Rules:
 - Answer the question directly, then stop. Do not add follow-up questions or commentary.
@@ -32,6 +33,12 @@ Rules:
   NO Markdown headings (#), NO tables.
 - Keep answers concise — no filler, no emojis unless the user uses them first.
 - If a tool errors, surface the error message verbatim to the user and stop.
+
+Jira tips:
+- For ANY Jira search/query, use the atlassian__jira_search_jql tool. Do NOT use search_jira_issues (it's broken).
+- For "my tickets" or "assigned to me", use JQL: assignee = "{email}" where {email} is the requesting user's email from the context below. NEVER use currentUser() — it resolves to the service account, not the person asking.
+- Include status filter (e.g., status != Done) unless the user asks for completed tickets.
+- For reading a single issue by key, use atlassian__read_jira_issue with issueKey parameter.
 """
 
 
@@ -54,8 +61,49 @@ class Orchestrator:
         tools[-1]["cache_control"] = {"type": "ephemeral"}
         return tools
 
-    async def answer(self, question: str, thread_history: list[dict[str, Any]]) -> str:
+    @staticmethod
+    def _trim_history(messages: list[dict[str, Any]], max_turns: int) -> list[dict[str, Any]]:
+        """Trim history to max_turns without orphaning tool_result blocks."""
+        if len(messages) <= max_turns:
+            return messages
+        trimmed = messages[-max_turns:]
+        # If first message is a tool_result (user role with tool_result content),
+        # drop it and the preceding assistant tool_use (if present) to avoid orphans.
+        while trimmed:
+            first = trimmed[0]
+            content = first.get("content")
+            is_tool_result = (
+                first.get("role") == "user"
+                and isinstance(content, list)
+                and any(isinstance(b, dict) and b.get("type") == "tool_result" for b in content)
+            )
+            if is_tool_result:
+                trimmed = trimmed[1:]
+            else:
+                break
+        # Also drop a leading assistant message with tool_use (orphaned without its result)
+        while trimmed:
+            first = trimmed[0]
+            content = first.get("content")
+            has_tool_use = first.get("role") == "assistant" and isinstance(content, list) and any(
+                (hasattr(b, "type") and b.type == "tool_use")
+                or (isinstance(b, dict) and b.get("type") == "tool_use")
+                for b in content
+            )
+            if has_tool_use:
+                trimmed = trimmed[1:]
+            else:
+                break
+        return trimmed
+
+    async def answer(
+        self, question: str, thread_history: list[dict[str, Any]], user_context: str = ""
+    ) -> str:
         messages: list[dict[str, Any]] = [*thread_history, {"role": "user", "content": question}]
+
+        system_text = SYSTEM_PROMPT
+        if user_context:
+            system_text += f"\n\nRequesting user context:\n{user_context}"
 
         for iteration in range(MAX_TOOL_ITERATIONS):
             logger.debug("calling claude", iteration=iteration, message_count=len(messages))
@@ -66,7 +114,7 @@ class Orchestrator:
                 system=[
                     {
                         "type": "text",
-                        "text": SYSTEM_PROMPT,
+                        "text": system_text,
                         "cache_control": {"type": "ephemeral"},
                     }
                 ],
@@ -76,7 +124,9 @@ class Orchestrator:
 
             if resp.stop_reason == "end_turn":
                 messages.append({"role": "assistant", "content": resp.content})
-                self.last_messages = messages[-self._settings.history_max_turns :]
+                self.last_messages = self._trim_history(
+                    messages, self._settings.history_max_turns
+                )
                 return self._extract_text(resp.content)
 
             if resp.stop_reason == "tool_use":
