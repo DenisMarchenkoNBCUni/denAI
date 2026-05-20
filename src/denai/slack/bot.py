@@ -130,5 +130,100 @@ def create_app(settings: Settings, orchestrator: Orchestrator) -> AsyncSocketMod
             logger.exception("error handling DM", error=str(exc))
             await say(text=f"⚠️ Sorry, I hit an error: {exc}", channel=channel)
 
+    @app.event("app_home_opened")  # type: ignore[misc]
+    async def handle_home_opened(event: dict[str, Any], client: Any) -> None:
+        user_id = event["user"]
+        await client.views_publish(
+            user_id=user_id,
+            view={
+                "type": "home",
+                "blocks": [
+                    {
+                        "type": "header",
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Hey there! I'm denAI :wave:",
+                        },
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": (
+                                "I'm your internal engineering assistant powered by Claude. "
+                                "I can search Jira, Confluence, GitHub, DevDoc, and even Slack "
+                                "to answer your questions — all from one place."
+                            ),
+                        },
+                    },
+                    {"type": "divider"},
+                    {
+                        "type": "header",
+                        "text": {
+                            "type": "plain_text",
+                            "text": "How to use me",
+                        },
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": (
+                                "*Mention me in any channel:*\n"
+                                "`@denai What's the status of PROJECT-123?`\n\n"
+                                "*Or DM me directly:*\n"
+                                "Just send a message — no prefix needed."
+                            ),
+                        },
+                    },
+                    {"type": "divider"},
+                    {
+                        "type": "header",
+                        "text": {
+                            "type": "plain_text",
+                            "text": "What I can help with",
+                        },
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": (
+                                ":jira: *Jira* — look up issues, search by JQL, check sprint status\n"
+                                ":confluence: *Confluence* — find and summarize pages and docs\n"
+                                ":github: *GitHub* — repos, PRs, code search, commit history\n"
+                                ":slack: *Slack* — search messages and channels\n"
+                                ":database: *MSSQL* — query databases (read-only)\n"
+                                ":book: *DevDoc* — internal documentation and runbooks"
+                            ),
+                        },
+                    },
+                    {"type": "divider"},
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": (
+                                ":bulb: *Tips:*\n"
+                                "• I remember conversation context within a thread\n"
+                                "• Be specific — the more detail, the better my answer\n"
+                                "• I can chain multiple tools together to answer complex questions"
+                            ),
+                        },
+                    },
+                    {"type": "divider"},
+                    {
+                        "type": "context",
+                        "elements": [
+                            {
+                                "type": "mrkdwn",
+                                "text": "Built by Denis Marchenko · Powered by Claude · Hackathon 2025",
+                            }
+                        ],
+                    },
+                ],
+            },
+        )
+
     handler = AsyncSocketModeHandler(app, settings.slack_app_token)
     return handler

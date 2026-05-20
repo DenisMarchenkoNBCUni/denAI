@@ -1,6 +1,6 @@
 display_information:
   name: denAI
-  description: Internal AI assistant — answers Jira, Confluence, DevDoc, GitHub, and Slack questions. Denis Marchenko hackathon project.
+  description: Your internal AI-powered engineering assistant. Ask questions about Jira issues, Confluence docs, GitHub repos, internal documentation, and more — all from Slack. Mention @denai in any channel or send a DM to get started.
   background_color: "#1F2937"
 features:
   bot_user:
@@ -22,6 +22,7 @@ oauth_config:
 settings:
   event_subscriptions:
     bot_events:
+      - app_home_opened
       - app_mention
       - message.im
   interactivity:
